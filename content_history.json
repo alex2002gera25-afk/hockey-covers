@@ -447,7 +447,12 @@
    "cta": "АНАЛИТИКА",
    "visual_concept": "силуэты игроков, шайба, без схем площадки",
    "structure": "cover, что видишь, как действовать, CTA",
-   "published": "auto via Metricool"
+   "published": "auto via Metricool",
+   "cover_scene": {
+    "scene": "rush(old fixed cast)",
+    "seed": 0,
+    "theme": "blue"
+   }
   },
   {
    "id": 10,

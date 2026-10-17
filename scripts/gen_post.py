@@ -190,62 +190,104 @@ def rush_scene(img):
     return blades
 
 
-# ================= 1: cover =================
-img = atmosphere(77, (540, 330), beam=False)
-bg = Image.new("L", img.size, 0)
-ImageDraw.Draw(bg).ellipse([P((120, 120)), P((960, 640))], fill=215)
-bg = bg.filter(ImageFilter.GaussianBlur(sc(120)))
-img.paste(Image.new("RGB", img.size, (120, 170, 250)), (0, 0), bg)
-fl = Image.new("L", img.size, 0)
-fld = ImageDraw.Draw(fl)
-for y in range(sc(560), sc(H)):
-    t = (y - sc(560)) / sc(H - 560)
-    fld.line([(0, y), (sc(W), y)], fill=int(205 * (1 - t) ** 0.8))
-img.paste(Image.new("RGB", img.size, (35, 70, 130)), (0, 0), fl)
-for fx, fy, fr in ((470, 60, 26), (810, 70, 30), (980, 130, 22), (640, 40, 34), (260, 190, 18)):
-    fg = Image.new("RGBA", img.size, (0, 0, 0, 0))
-    ImageDraw.Draw(fg).ellipse([P((fx - fr, fy - fr)), P((fx + fr, fy + fr))], fill=(255, 255, 255, 235))
-    fgb = fg.filter(ImageFilter.GaussianBlur(sc(16))); img.paste(fgb, (0, 0), fgb)
-    fgs = fg.filter(ImageFilter.GaussianBlur(sc(3))); img.paste(fgs, (0, 0), fgs)
-# soft ice shadows under skaters
-shd = Image.new("RGBA", img.size, (0, 0, 0, 0))
-sdd = ImageDraw.Draw(shd)
-for cx, gy, w in ((610, 612, 100), (440, 676, 130), (920, 616, 100), (775, 706, 145), (250, 730, 150), (95, 640, 115)):
-    sdd.ellipse([P((cx - w, gy - 12)), P((cx + w, gy + 16))], fill=(0, 0, 0, 120))
-shd = shd.filter(ImageFilter.GaussianBlur(sc(9))); img.paste(shd, (0, 0), shd)
-blades = rush_scene(img)
-spray(img, (270, 735), -170, 34, 420, 30, 220, seed=8)
-spray(img, (800, 712), 20, 28, 380, 30, 200, seed=15, glow=False)
-spray(img, (60, 650), 175, 24, 200, 20, 150, seed=19, glow=False)
+
+import random as _r
+THEMES = {"blue": ((120,170,250),(35,70,130)), "deep": ((70,120,235),(20,45,100)),
+          "ice": ((170,205,255),(50,90,150)), "steel": ((100,140,200),(28,55,105)),
+          "royal": ((60,110,255),(18,40,110))}
+
+def backdrop(R, theme, floor_y):
+    gc, fc = THEMES[theme]
+    img = atmosphere(R.randint(1, 999), (R.randint(300, 780), R.randint(260, 420)), beam=False)
+    gx = R.randint(260, 820); gy = R.randint(220, 420)
+    bg = Image.new("L", img.size, 0)
+    ImageDraw.Draw(bg).ellipse([P((gx - 420, gy - 260)), P((gx + 420, gy + 260))], fill=R.randint(170, 225))
+    bg = bg.filter(ImageFilter.GaussianBlur(sc(120)))
+    img.paste(Image.new("RGB", img.size, gc), (0, 0), bg)
+    fl = Image.new("L", img.size, 0); fld = ImageDraw.Draw(fl)
+    for y in range(sc(floor_y), sc(H)):
+        t = (y - sc(floor_y)) / sc(H - floor_y)
+        fld.line([(0, y), (sc(W), y)], fill=int(205 * (1 - t) ** 0.8))
+    img.paste(Image.new("RGB", img.size, fc), (0, 0), fl)
+    for _ in range(R.randint(3, 6)):
+        fx, fy, fr = R.randint(120, 980), R.randint(40, 230), R.randint(16, 34)
+        if fy < 120 and fx < 400: fx += 360
+        fg = Image.new("RGBA", img.size, (0, 0, 0, 0))
+        ImageDraw.Draw(fg).ellipse([P((fx - fr, fy - fr)), P((fx + fr, fy + fr))], fill=(255, 255, 255, R.randint(150, 235)))
+        img.paste(fg.filter(ImageFilter.GaussianBlur(sc(16))), (0, 0), fg.filter(ImageFilter.GaussianBlur(sc(16))))
+        img.paste(fg.filter(ImageFilter.GaussianBlur(sc(3))), (0, 0), fg.filter(ImageFilter.GaussianBlur(sc(3))))
+    return img
+
+def draw_cast(img, players):
+    shd = Image.new("RGBA", img.size, (0, 0, 0, 0)); sdd = ImageDraw.Draw(shd)
+    for hx, hy, d, lean, k, st in players:
+        gy = hy + 122 * k; w = 120 * k
+        sdd.ellipse([P((hx - w, gy - 12)), P((hx + w, gy + 16))], fill=(0, 0, 0, 120))
+    img.paste(shd.filter(ImageFilter.GaussianBlur(sc(9))), (0, 0), shd.filter(ImageFilter.GaussianBlur(sc(9))))
+    rim = Image.new("RGBA", img.size, (0, 0, 0, 0)); dark = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    rd, dd = ImageDraw.Draw(rim), ImageDraw.Draw(dark)
+    for hx, hy, d, lean, k, st in players:
+        skater2(rd, (hx, hy), d, lean, k, 1.0, (150, 195, 255, 255), stance=st)
+    for hx, hy, d, lean, k, st in players:
+        skater2(dd, (hx, hy), d, lean, k, 1.0, (6, 9, 16, 255), stance=st)
+    glow = rim.filter(ImageFilter.GaussianBlur(sc(5)))
+    sh = Image.new("RGBA", img.size, (0, 0, 0, 0)); sh.paste(glow, (sc(-5), sc(-4)))
+    img.paste(sh, (0, 0), sh); img.paste(dark, (0, 0), dark)
+
+def cover_scene(R, kind, theme):
+    img = backdrop(R, theme, R.randint(540, 600))
+    players = []
+    if kind == "rush":
+        n = R.randint(3, 5); dirn = R.choice([1, -1])
+        xs = [int(110 + i * (860 / (n - 1))) + R.randint(-25, 25) for i in range(n)]
+        for x in xs:
+            k = R.uniform(0.6, 0.95); g = 560 + (k - 0.6) * 480
+            d = dirn if R.random() > 0.25 else -dirn
+            st = "def" if (d != dirn and R.random() > 0.4) else "skate"
+            players.append((x, g - 122 * k, d, R.uniform(0.1, 0.62), k, st))
+    elif kind == "line":
+        dirn = R.choice([1, -1]); k = R.uniform(0.85, 1.0)
+        for i, x in enumerate((220, 540, 860)):
+            kk = k - 0.06 * abs(i - 1)
+            players.append((x + R.randint(-30, 30), 700 - 122 * kk + (R.randint(-30, 30)), dirn, R.uniform(0.25, 0.55), kk, "skate"))
+    elif kind == "duel":
+        k = R.uniform(1.15, 1.35)
+        players = [(R.randint(240, 340), 770 - 122 * k, 1, R.uniform(0.3, 0.55), k, "skate"),
+                   (R.randint(740, 840), 770 - 122 * k, -1, R.uniform(0.1, 0.35), k, "def")]
+    elif kind == "solo":
+        k = R.uniform(1.5, 1.75); d = R.choice([1, -1])
+        players = [(R.randint(400, 680), 800 - 122 * k, d, R.uniform(0.3, 0.6), k, "skate")]
+    if kind == "puck":
+        motion_streaks(img, (540, 450), n=30, length=460, ang=R.choice([190, 175, 200]), seed=R.randint(1, 99))
+        spray(img, (R.randint(600, 760), 520), R.choice([10, -10, 25]), 30, 300, 30, 220, seed=R.randint(1, 99))
+        puck(img, (R.randint(430, 650), R.randint(400, 480)), r=R.randint(105, 140), tilt=R.uniform(0.36, 0.5))
+    else:
+        draw_cast(img, players)
+        for hx, hy, d, lean, k, st in R.sample(players, min(2, len(players))):
+            spray(img, (hx - d * 20, hy + 122 * k + 6), 180 if d > 0 else 0, 30, 380, 30, 220, seed=R.randint(1, 99), glow=R.random() > 0.5)
+    return img
+
+_c = _SPEC["cover"]; _R = _r.Random(_c.get("seed", 1))
+img = cover_scene(_R, _c.get("scene", "rush"), _c.get("theme", "blue"))
 darken(img, 700, 930, 238)
 d = ImageDraw.Draw(img, "RGBA")
 brand(d)
-f1, s1 = fit([_SPEC['cover']['t1'], _SPEC['cover']['t2']], FH, 920, 150)
+f1, s1 = fit([_c['t1'], _c['t2']], FH, 920, 150)
 y = 800
-text(d, (80, y), _SPEC['cover']['t1'], f1, WHITE)
-text(d, (80, y + int(s1 * 1.02)), _SPEC['cover']['t2'], f1, BLUE2)
-para(d, 80, y + int(s1 * 2.2), _SPEC['cover']['sub'],
-     font(FB, 31), GREY, 900, 42)
+text(d, (80, y), _c['t1'], f1, WHITE)
+text(d, (80, y + int(s1 * 1.02)), _c['t2'], f1, BLUE2)
+para(d, 80, y + int(s1 * 2.2), _c['sub'], font(FB, 31), GREY, 900, 42)
 d.line([P((80, 1252)), P((200, 1252))], fill=BLUE, width=sc(6))
-text(d, (80, 1268), _SPEC['cover']['foot'], font(FBB, 28), WHITE)
+text(d, (80, 1268), _c['foot'], font(FBB, 28), WHITE)
 text(d, (1000, 1262), "→", font(FH, 44), BLUE2, "ra")
 save(img, "01_cover.png")
 
-
-
 # ===== CTA =====
-img = atmosphere(91, (540, 380), beam=False)
-bgm = Image.new("L", img.size, 0)
-ImageDraw.Draw(bgm).ellipse([P((140, 100)), P((940, 700))], fill=200)
-bgm = bgm.filter(ImageFilter.GaussianBlur(sc(130)))
-img.paste(Image.new("RGB", img.size, (95, 150, 240)), (0, 0), bgm)
-fl = Image.new("L", img.size, 0); fld = ImageDraw.Draw(fl)
-for y in range(sc(640), sc(H)):
-    t = (y - sc(640)) / sc(H - 640); fld.line([(0, y), (sc(W), y)], fill=int(190 * (1 - t) ** 0.8))
-img.paste(Image.new("RGB", img.size, (35, 70, 130)), (0, 0), fl)
-motion_streaks(img, (540, 470), n=30, length=460, ang=190, seed=4)
-spray(img, (700, 520), 10, 30, 300, 30, 220, seed=21)
-puck(img, (540, 470), r=120)
+_R2 = _r.Random(_c.get("seed", 1) + 101)
+img = backdrop(_R2, _c.get("cta_theme", _R2.choice(list(THEMES))), 640)
+motion_streaks(img, (540, 470), n=30, length=460, ang=_R2.choice([190, 175, 205]), seed=_R2.randint(1, 99))
+spray(img, (_R2.randint(600, 780), 520), _R2.choice([10, -8, 22]), 30, 300, 30, 220, seed=_R2.randint(1, 99))
+puck(img, (_R2.randint(400, 680), _R2.randint(400, 500)), r=_R2.randint(105, 140), tilt=_R2.uniform(0.36, 0.5))
 darken(img, 640, 900, 240)
 d = ImageDraw.Draw(img, "RGBA")
 brand(d)
