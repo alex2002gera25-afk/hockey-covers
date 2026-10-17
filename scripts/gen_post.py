@@ -192,16 +192,16 @@ def rush_scene(img):
 
 
 import random as _r
-THEMES = {"blue": ((120,170,250),(35,70,130)), "deep": ((70,120,235),(20,45,100)),
-          "ice": ((170,205,255),(50,90,150)), "steel": ((100,140,200),(28,55,105)),
-          "royal": ((60,110,255),(18,40,110))}
+THEMES = {"blue": ((60,100,190),(14,32,64)), "deep": ((40,75,160),(10,24,52)),
+          "ice": ((95,135,215),(24,50,96)), "steel": ((55,85,150),(14,28,58)),
+          "royal": ((45,85,200),(12,30,78))}
 
 def backdrop(R, theme, floor_y):
     gc, fc = THEMES[theme]
     img = atmosphere(R.randint(1, 999), (R.randint(300, 780), R.randint(260, 420)), beam=False)
     gx = R.randint(260, 820); gy = R.randint(220, 420)
     bg = Image.new("L", img.size, 0)
-    ImageDraw.Draw(bg).ellipse([P((gx - 420, gy - 260)), P((gx + 420, gy + 260))], fill=R.randint(170, 225))
+    ImageDraw.Draw(bg).ellipse([P((gx - 420, gy - 260)), P((gx + 420, gy + 260))], fill=R.randint(120, 170))
     bg = bg.filter(ImageFilter.GaussianBlur(sc(120)))
     img.paste(Image.new("RGB", img.size, gc), (0, 0), bg)
     fl = Image.new("L", img.size, 0); fld = ImageDraw.Draw(fl)
@@ -271,8 +271,8 @@ def cover_scene(R, kind, theme):
 _ASSET = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "player_icon.png")
 
 def grad_bg(R, theme):
-    top = {"blue": (14, 36, 92), "deep": (8, 22, 60), "ice": (24, 56, 120), "steel": (16, 34, 76), "royal": (20, 50, 150)}[theme]
-    bot = {"blue": (45, 107, 255), "deep": (30, 80, 220), "ice": (90, 150, 255), "steel": (40, 85, 175), "royal": (45, 107, 255)}[theme]
+    top = {"blue": (5, 7, 13), "deep": (5, 7, 13), "ice": (6, 10, 22), "steel": (5, 8, 16), "royal": (5, 8, 18)}[theme]
+    bot = {"blue": (11, 31, 58), "deep": (8, 22, 48), "ice": (22, 52, 104), "steel": (14, 30, 62), "royal": (16, 44, 108)}[theme]
     img = Image.new("RGB", (sc(W), sc(H)))
     g = ImageDraw.Draw(img)
     flip = R.random() < 0.5
@@ -285,14 +285,14 @@ def grad_bg(R, theme):
     bm = Image.new("L", img.size, 0); bd = ImageDraw.Draw(bm)
     for _ in range(R.randint(2, 4)):
         x0 = R.randint(-200, 1100); w = R.randint(60, 200)
-        bd.polygon([P((x0, -50)), P((x0 + w, -50)), P((x0 + w - 520, H + 50)), P((x0 - 520, H + 50))], fill=R.randint(18, 40))
+        bd.polygon([P((x0, -50)), P((x0 + w, -50)), P((x0 + w - 520, H + 50)), P((x0 - 520, H + 50))], fill=R.randint(8, 20))
     bm = bm.filter(ImageFilter.GaussianBlur(sc(40)))
     img.paste(Image.new("RGB", img.size, (190, 215, 255)), (0, 0), bm)
     # ice trails: thin faint horizontal strokes
     tr = Image.new("RGBA", img.size, (0, 0, 0, 0)); td = ImageDraw.Draw(tr)
     for _ in range(R.randint(10, 18)):
         y = R.randint(120, 1220); x = R.randint(-100, 900); L = R.randint(120, 520)
-        td.line([P((x, y)), P((x + L, y + R.randint(-6, 6)))], fill=(255, 255, 255, R.randint(14, 40)), width=sc(R.choice([2, 3, 5])))
+        td.line([P((x, y)), P((x + L, y + R.randint(-6, 6)))], fill=(150, 190, 255, R.randint(10, 28)), width=sc(R.choice([2, 3, 5])))
     img.paste(tr.filter(ImageFilter.GaussianBlur(sc(1.2))), (0, 0), tr.filter(ImageFilter.GaussianBlur(sc(1.2))))
     # vignette
     vg = Image.new("L", img.size, 0); vd = ImageDraw.Draw(vg)
@@ -322,7 +322,7 @@ def cover_special(R, kind, theme, c):
         y0 = R.randint(430, 540)
         d.rounded_rectangle([P((120, y0 - 60)), P((960, y0 - 54))], radius=sc(3), fill=BLUE2)
         y = centered_lines(d, y0, c["t1"], f1, WHITE, 900, lh)
-        y = centered_lines(d, y, c["t2"], f1, (150, 190, 255), 900, lh)
+        y = centered_lines(d, y, c["t2"], f1, (63, 130, 255), 900, lh)
         centered_lines(d, y + 24, c["sub"], font(FB, 34), (200, 215, 240), 820, 46)
     else:
         icon = Image.open(_ASSET).convert("RGBA")
@@ -350,7 +350,7 @@ def cover_special(R, kind, theme, c):
 
 def text_block(d, y, c, f1, lh):
     d.text((P((80, y))), c["t1"], font=f1, fill=WHITE)
-    d.text((P((80, y + lh))), c["t2"], font=f1, fill=(160, 198, 255))
+    d.text((P((80, y + lh))), c["t2"], font=f1, fill=(63, 130, 255))
     para(d, 80, y + int(lh * 2.15), c["sub"], font(FB, 31), (205, 218, 240), 900, 42)
     return y + lh * 3
 
@@ -370,7 +370,7 @@ else:
     para(d, 80, y + int(s1 * 2.2), _c['sub'], font(FB, 31), GREY, 900, 42)
 d.line([P((80, 1252)), P((200, 1252))], fill=BLUE, width=sc(6))
 text(d, (80, 1268), _c['foot'], font(FBB, 28), WHITE)
-text(d, (1000, 1262), "→", font(FH, 44), (160, 198, 255) if _kind in ("icon", "center") else BLUE2, "ra")
+text(d, (1000, 1262), "→", font(FH, 44), BLUE2, "ra")
 save(img, "01_cover.png")
 
 # ===== CTA =====
