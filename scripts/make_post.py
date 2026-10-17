@@ -55,17 +55,41 @@ def cover(p,c):
     d.rectangle([80*S,1250*S,200*S,1254*S],fill=BLUE)
     d.text((80*S,1268*S),c["foot"],font=f(FBB,32),fill=WHITE); d.text((970*S,1268*S),"→",font=f(FBB,40),fill=BLUE)
     finish(im,p)
+def rich(d,x,y,txt,font,maxw,lh,base,hi):
+    import re
+    toks=[]  # (word, highlighted, space_before)
+    prev_trail=False
+    for i,part in enumerate(txt.split("**")):
+        first=True
+        for m in re.finditer(r'(\s*)(\S+)',part):
+            sb = bool(m.group(1)) or (first and prev_trail and bool(toks))
+            toks.append([m.group(2), i%2==1, sb]); first=False
+        if part: prev_trail = part[-1].isspace()
+    # glue: a token directly after a marker (no whitespace) has no space before
+    sp=d.textlength(" ",font=font)/S
+    lines=[];cur=[];curw=0
+    for w,h,sb in toks:
+        ww=d.textlength(w,font=font)/S; add=(sp if (sb and cur) else 0)
+        if cur and sb and curw+add+ww>maxw: lines.append(cur);cur=[];curw=0;add=0
+        cur.append((w,h,add)); curw+=add+ww
+    if cur: lines.append(cur)
+    for ln in lines:
+        xx=x
+        for w,h,add in ln:
+            xx+=add; d.text((xx*S,y*S),w,font=font,fill=hi if h else base); xx+=d.textlength(w,font=font)/S
+        y+=lh
+    return y
 def cards(p,c):
     im=bg(); d=ImageDraw.Draw(im); brand(d)
-    y=text(d,80,180,c["title"],f(FH,70),WHITE,920,1.1)
+    y=text(d,80,170,c["title"],f(FH,72),WHITE,920,1.1)
     text(d,80,y+8,c["sub"],f(FB,34),GREY,920,1.3)
-    y=470
+    y=430
     for i,(h,b) in enumerate(c["items"],1):
-        d.rounded_rectangle([80*S,y*S,1000*S,(y+230)*S],radius=28*S,fill=(11,31,58),outline=(40,70,130),width=2*S)
-        d.ellipse([110*S,(y+30)*S,170*S,(y+90)*S],fill=BLUE); d.text((128*S,(y+36)*S),str(i),font=f(FH,40),fill=WHITE)
-        text(d,200,y+30,h,f(FBB,38),WHITE,770,1.15)
-        text(d,200,y+100,b,f(FB,30),GREY,770,1.25)
-        y+=262
+        d.rounded_rectangle([80*S,y*S,1000*S,(y+262)*S],radius=28*S,fill=(11,31,58),outline=(40,70,130),width=2*S)
+        d.ellipse([110*S,(y+28)*S,170*S,(y+88)*S],fill=BLUE); d.text((128*S,(y+34)*S),str(i),font=f(FH,40),fill=WHITE)
+        text(d,200,y+28,h,f(FBB,38),WHITE,770,1.15)
+        rich(d,200,y+92,b,f(FB,31),770,42,(190,200,218),(63,130,255))
+        y+=286
     finish(im,p)
 def cta(p,c):
     im=bg(); d=ImageDraw.Draw(im); brand(d)

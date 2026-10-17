@@ -327,12 +327,12 @@ def cover_special(R, kind, theme, c):
         img.paste(bk, (0, 0), bk)
     else:
         icon = Image.open(_ASSET).convert("RGBA")
-        iw = R.randint(400, 560); ih = int(icon.height * iw / icon.width)
+        iw = R.randint(440, 600); ih = int(icon.height * iw / icon.width)
         icon = icon.resize((sc(iw), sc(ih)), Image.LANCZOS)
         if R.random() < 0.5: icon = icon.transpose(Image.FLIP_LEFT_RIGHT)
         icon = icon.rotate(R.uniform(-9, 9), expand=True, resample=Image.BICUBIC)
         half = max(icon.height, icon.width) / S / 2
-        cy = R.randint(260, 460); cy = min(max(cy, 160 + half), 760 - half)
+        cy = R.randint(260, 440); cy = min(max(cy, 150 + half), 700 - half)
         cx = R.randint(380, 700)
         glow = Image.new("RGBA", icon.size, (255, 255, 255, 0)); glow.putalpha(icon.getchannel("A").point(lambda v: int(v * 0.4)))
         gl = Image.new("RGBA", img.size, (0, 0, 0, 0)); gl.paste(glow, (sc(cx) - icon.width // 2, sc(cy) - icon.height // 2))
@@ -347,14 +347,20 @@ if _kind in ("icon", "text"):
     img = cover_special(_R, _kind, _c.get("theme", "blue"), _c)
 else:
     img = cover_scene(_R, _kind, _c.get("theme", "blue"))
-darken(img, 700, 930, 238)
+darken(img, 640, 880, 238)
 d = ImageDraw.Draw(img, "RGBA")
 brand(d)
 f1, s1 = fit([_c['t1'], _c['t2']], FH, 920, 150)
-y = 640 if _kind == "text" else 800
+y = 560 if _kind == "text" else (740 if _kind == "icon" else 790)
 text(d, (80, y), _c['t1'], f1, WHITE)
 text(d, (80, y + int(s1 * 1.02)), _c['t2'], f1, BLUE2)
-para(d, 80, y + int(s1 * 2.2), _c['sub'], font(FB, 31), GREY, 900, 42)
+ye = para(d, 80, y + int(s1 * 2.2), _c['sub'], font(FB, 36), GREY, 920, 50)
+cx_ = 80
+for chip in _c.get('chips', []):
+    cf = font(FBB, 28); cw = d.textlength(chip, font=cf) / S + 44
+    d.rounded_rectangle([P((cx_, ye + 26)), P((cx_ + cw, ye + 84))], radius=sc(29), outline=BLUE, width=sc(3), fill=(11, 31, 58, 200))
+    text(d, (cx_ + 22, ye + 40), chip, cf, WHITE)
+    cx_ += cw + 16
 d.line([P((80, 1252)), P((200, 1252))], fill=BLUE, width=sc(6))
 text(d, (80, 1268), _c['foot'], font(FBB, 28), WHITE)
 text(d, (1000, 1262), "→", font(FH, 44), BLUE2, "ra")
@@ -369,12 +375,12 @@ puck(img, (_R2.randint(400, 680), _R2.randint(400, 500)), r=_R2.randint(105, 140
 darken(img, 640, 900, 240)
 d = ImageDraw.Draw(img, "RGBA")
 brand(d)
-f1, s1 = fit([_SPEC['cta']['t1'], _SPEC['cta']['t2']], FH, 920, 110)
-y = 700
+f1, s1 = fit([_SPEC['cta']['t1'], _SPEC['cta']['t2']], FH, 920, 130)
+y = 680
 text(d, (80, y), _SPEC['cta']['t1'], f1, WHITE)
 text(d, (80, y + int(s1 * 1.02)), _SPEC['cta']['t2'], f1, BLUE2)
-para(d, 80, y + int(s1 * 2.2), _SPEC['cta']['sub'], font(FB, 31), GREY, 900, 42)
-bx = 80; by = 1060
+para(d, 80, y + int(s1 * 2.2), _SPEC['cta']['sub'], font(FB, 36), GREY, 920, 50)
+bx = 80; by = 1070
 fb = font(FBB, 36); tw = d.textlength(_SPEC['cta']['btn'], font=fb) / S
 d.rounded_rectangle([P((bx, by)), P((bx + tw + 80, by + 84))], radius=sc(42), fill=BLUE)
 text(d, (bx + 40, by + 17), _SPEC['cta']['btn'], fb, WHITE)
