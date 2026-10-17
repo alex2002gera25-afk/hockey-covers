@@ -236,8 +236,81 @@ def draw_cast(img, players):
     sh = Image.new("RGBA", img.size, (0, 0, 0, 0)); sh.paste(glow, (sc(-5), sc(-4)))
     img.paste(sh, (0, 0), sh); img.paste(dark, (0, 0), dark)
 
+
+def _shape_layers(img, painter):
+    """painter(dr, fill) draws a silhouette; returns after pasting rim glow + dark body."""
+    rim = Image.new("RGBA", img.size, (0, 0, 0, 0)); dark = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    painter(ImageDraw.Draw(rim), (150, 195, 255, 255)); painter(ImageDraw.Draw(dark), (6, 9, 16, 255))
+    glow = rim.filter(ImageFilter.GaussianBlur(sc(5)))
+    sh = Image.new("RGBA", img.size, (0, 0, 0, 0)); sh.paste(glow, (sc(-5), sc(-4)))
+    img.paste(sh, (0, 0), sh); img.paste(dark, (0, 0), dark)
+
+def _net(img, cx, gy, w, h, alpha=200):
+    lay = Image.new("RGBA", img.size, (0, 0, 0, 0)); d_ = ImageDraw.Draw(lay)
+    x0, x1, y0 = cx - w / 2, cx + w / 2, gy - h
+    for i in range(1, 14):
+        x = x0 + (x1 - x0) * i / 14; d_.line([P((x, y0)), P((x, gy))], fill=(170, 200, 255, 40), width=sc(2))
+    for j in range(1, 9):
+        y = y0 + (gy - y0) * j / 9; d_.line([P((x0, y)), P((x1, y))], fill=(170, 200, 255, 40), width=sc(2))
+    d_.line([P((x0, gy)), P((x0, y0)), P((x1, y0)), P((x1, gy))], fill=(215, 230, 255, alpha), width=sc(14), joint="curve")
+    gl = lay.filter(ImageFilter.GaussianBlur(sc(8)))
+    img.paste(gl, (0, 0), gl); img.paste(lay, (0, 0), lay)
+
+def _goalie(dr, fill, cx, gy, k, pose):
+    T = lambda x, y: P((cx + x * k, gy + y * k))
+    def poly(pts): dr.polygon([T(*q) for q in pts], fill=fill)
+    def limb(pts, w):
+        for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+            dr.line([T(x0, y0), T(x1, y1)], fill=fill, width=sc(w * k))
+        for x, y in pts: dr.ellipse([P((cx + x * k - w * k / 2, gy + y * k - w * k / 2)), P((cx + x * k + w * k / 2, gy + y * k + w * k / 2))], fill=fill)
+    lift = 170 if pose == "butterfly" else 0
+    if pose == "butterfly":
+        poly([(-60, -70), (-270, -30), (-285, 0), (-55, 0)]); poly([(60, -70), (270, -30), (285, 0), (55, 0)])
+    else:
+        poly([(-128, -250), (-46, -250), (-34, 0), (-140, 0)]); poly([(46, -250), (128, -250), (140, 0), (34, 0)])
+        for sx in (-1, 1): dr.rounded_rectangle([T(sx * 150 - 40 if sx < 0 else 20, -22), T(sx * 150 + 20 if sx < 0 else 170, 4)], radius=sc(8 * k), fill=fill)
+    poly([(-95, -250 + lift), (95, -250 + lift), (115, -320 + lift), (-115, -320 + lift)])
+    poly([(-92, -310 + lift), (92, -310 + lift), (140, -470 + lift), (-140, -470 + lift)])
+    dr.ellipse([P((cx - 52 * k, gy + (-580 + lift) * k)), P((cx + 52 * k, gy + (-470 + lift) * k))], fill=fill)
+    # glove (left) and blocker (right)
+    gx, gyy = (-300, -520 + lift) if pose == "glove" else (-255, -330 + lift)
+    limb([(-130, -450 + lift), ((-130 + gx) / 2 - 20, (-450 + lift + gyy) / 2), (gx, gyy)], 46)
+    dr.ellipse([P((cx + (gx - 52) * k, gy + (gyy - 58) * k)), P((cx + (gx + 52) * k, gy + (gyy + 58) * k))], fill=fill)
+    bx, by = (320, -400 + lift) if pose == "butterfly" else (235, -330 + lift)
+    limb([(130, -450 + lift), ((130 + bx) / 2 + 20, (-450 + lift + by) / 2), (bx, by)], 46)
+    poly([(bx - 38, by - 66), (bx + 42, by - 60), (bx + 40, by + 62), (bx - 36, by + 66)])
+    # stick
+    dr.line([T(bx, by + 40), T(bx + 28, -8)], fill=fill, width=sc(9 * k))
+    poly([(bx + 12, -140), (bx + 52, -140), (bx + 62, -2), (bx + 18, -2)])
+    dr.line([T(bx + 20, -6), T(bx + 190, -6)], fill=fill, width=sc(12 * k))
+
+def _sticks(dr, fill, R):
+    def stick(x0, y0, x1, y1, d):
+        dr.line([P((x0, y0)), P((x1, y1))], fill=fill, width=sc(18))
+        dr.line([P((x1, y1)), P((x1 + d * 150, y1 + 14))], fill=fill, width=sc(26))
+    stick(240, 160, 790, 690, 1); stick(850, 170, 290, 700, -1)
+
+def draw_special_scene(img, R, kind):
+    if kind == "goalie":
+        pose = R.choice(["ready", "glove", "butterfly"]); k = R.uniform(0.72, 0.9)
+        cx = R.randint(440, 640); gy = R.randint(690, 720)
+        _net(img, cx + R.randint(-30, 30), gy, int(860 * k), int(600 * k) if pose != "butterfly" else int(540 * k))
+        _shape_layers(img, lambda dr, f: _goalie(dr, f, cx, gy, k, pose))
+        motion_streaks(img, (cx + 300, gy - 300), n=18, length=330, ang=R.choice([180, 170, 190]), seed=R.randint(1, 99))
+        spray(img, (cx - 150, gy), 180, 28, 260, 30, 220, seed=R.randint(1, 99))
+    elif kind == "net":
+        cx = 540; gy = 700; k = R.uniform(0.85, 1.0)
+        _net(img, cx, gy, int(860 * k), int(520 * k), alpha=235)
+        px, py = R.randint(420, 700), R.randint(470, 630)
+        spray(img, (px, py + 20), R.choice([200, 320, 270]), 40, 360, 20, 240, seed=R.randint(1, 99))
+        puck(img, (px, py), r=R.randint(60, 82), tilt=0.45)
+    elif kind == "sticks":
+        _shape_layers(img, lambda dr, f: _sticks(dr, f, R))
+        puck(img, (540, 520), r=R.randint(70, 90), tilt=0.45)
+        spray(img, (540, 640), R.choice([90, 270]), 60, 300, 20, 200, seed=R.randint(1, 99))
+
 def cover_scene(R, kind, theme):
-    img = backdrop(R, theme, R.randint(540, 600), smooth=(kind == "puck"))
+    img = backdrop(R, theme, R.randint(540, 600), smooth=(kind in ("puck", "goalie", "net", "sticks")))
     players = []
     if kind == "rush":
         n = R.randint(3, 5); dirn = R.choice([1, -1])
@@ -259,7 +332,9 @@ def cover_scene(R, kind, theme):
     elif kind == "solo":
         k = R.uniform(1.5, 1.75); d = R.choice([1, -1])
         players = [(R.randint(400, 680), 800 - 122 * k, d, R.uniform(0.3, 0.6), k, "skate")]
-    if kind == "puck":
+    if kind in ("goalie", "net", "sticks"):
+        draw_special_scene(img, R, kind)
+    elif kind == "puck":
         motion_streaks(img, (540, 450), n=30, length=460, ang=R.choice([190, 175, 200]), seed=R.randint(1, 99))
         spray(img, (R.randint(600, 760), 520), R.choice([10, -10, 25]), 30, 300, 30, 220, seed=R.randint(1, 99))
         puck(img, (R.randint(430, 650), R.randint(400, 480)), r=R.randint(105, 140), tilt=R.uniform(0.36, 0.5))
