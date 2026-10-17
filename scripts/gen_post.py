@@ -196,7 +196,7 @@ THEMES = {"blue": ((60,100,190),(14,32,64)), "deep": ((40,75,160),(10,24,52)),
           "ice": ((95,135,215),(24,50,96)), "steel": ((55,85,150),(14,28,58)),
           "royal": ((45,85,200),(12,30,78))}
 
-def backdrop(R, theme, floor_y):
+def backdrop(R, theme, floor_y, smooth=False):
     gc, fc = THEMES[theme]
     img = atmosphere(R.randint(1, 999), (R.randint(300, 780), R.randint(260, 420)), beam=False)
     gx = R.randint(260, 820); gy = R.randint(220, 420)
@@ -205,9 +205,11 @@ def backdrop(R, theme, floor_y):
     bg = bg.filter(ImageFilter.GaussianBlur(sc(120)))
     img.paste(Image.new("RGB", img.size, gc), (0, 0), bg)
     fl = Image.new("L", img.size, 0); fld = ImageDraw.Draw(fl)
-    for y in range(sc(floor_y), sc(H)):
-        t = (y - sc(floor_y)) / sc(H - floor_y)
-        fld.line([(0, y), (sc(W), y)], fill=int(205 * (1 - t) ** 0.8))
+    y0 = floor_y - (200 if smooth else 0)
+    for y in range(sc(y0), sc(H)):
+        t = (y - sc(y0)) / sc(H - y0)
+        ramp = min(1.0, t * 4) if smooth else 1.0
+        fld.line([(0, y), (sc(W), y)], fill=int(150 * ramp * (1 - t) ** 0.8))
     img.paste(Image.new("RGB", img.size, fc), (0, 0), fl)
     for _ in range(R.randint(3, 6)):
         fx, fy, fr = R.randint(120, 980), R.randint(40, 230), R.randint(16, 34)
@@ -235,7 +237,7 @@ def draw_cast(img, players):
     img.paste(sh, (0, 0), sh); img.paste(dark, (0, 0), dark)
 
 def cover_scene(R, kind, theme):
-    img = backdrop(R, theme, R.randint(540, 600))
+    img = backdrop(R, theme, R.randint(540, 600), smooth=(kind == "puck"))
     players = []
     if kind == "rush":
         n = R.randint(3, 5); dirn = R.choice([1, -1])
@@ -315,59 +317,44 @@ def centered_lines(d, y, txt, f_, fill, maxw, lh):
 
 def cover_special(R, kind, theme, c):
     img = grad_bg(R, theme)
-    d = ImageDraw.Draw(img, "RGBA")
-    f1, s1 = fit([c["t1"], c["t2"]], FH, 880, 128)
-    lh = int(s1 * 1.05)
-    if kind == "center":
-        y0 = R.randint(430, 540)
-        d.rounded_rectangle([P((120, y0 - 60)), P((960, y0 - 54))], radius=sc(3), fill=BLUE2)
-        y = centered_lines(d, y0, c["t1"], f1, WHITE, 900, lh)
-        y = centered_lines(d, y, c["t2"], f1, (63, 130, 255), 900, lh)
-        centered_lines(d, y + 24, c["sub"], font(FB, 34), (200, 215, 240), 820, 46)
+    if kind == "text":
+        # soft bokeh at the top, like the account's text-only covers
+        bk = Image.new("RGBA", img.size, (0, 0, 0, 0)); bd = ImageDraw.Draw(bk)
+        for _ in range(R.randint(5, 9)):
+            x, y, r_ = R.randint(80, 1000), R.randint(40, 520), R.randint(24, 80)
+            bd.ellipse([P((x - r_, y - r_)), P((x + r_, y + r_))], fill=(70, 120, 235, R.randint(26, 70)))
+        bk = bk.filter(ImageFilter.GaussianBlur(sc(14)))
+        img.paste(bk, (0, 0), bk)
     else:
         icon = Image.open(_ASSET).convert("RGBA")
-        iw = R.randint(460, 620); ih = int(icon.height * iw / icon.width)
+        iw = R.randint(400, 560); ih = int(icon.height * iw / icon.width)
         icon = icon.resize((sc(iw), sc(ih)), Image.LANCZOS)
         if R.random() < 0.5: icon = icon.transpose(Image.FLIP_LEFT_RIGHT)
         icon = icon.rotate(R.uniform(-9, 9), expand=True, resample=Image.BICUBIC)
-        layout = R.choice(["icon_top", "icon_bottom"])
         half = max(icon.height, icon.width) / S / 2
-        if layout == "icon_top":
-            cy = R.randint(330, 440); ty = 800
-            cy = min(max(cy, 150 + half), 770 - half)
-        else:
-            cy = R.randint(860, 940); ty = 170
-            cy = max(min(cy, 1195 - half), 500 + half)
-        cx = R.randint(420, 660)
-        sh = Image.new("RGBA", img.size, (0, 0, 0, 0))
-        glow = Image.new("RGBA", icon.size, (255, 255, 255, 0)); glow.putalpha(icon.getchannel("A").point(lambda v: int(v * 0.45)))
+        cy = R.randint(260, 460); cy = min(max(cy, 160 + half), 760 - half)
+        cx = R.randint(380, 700)
+        glow = Image.new("RGBA", icon.size, (255, 255, 255, 0)); glow.putalpha(icon.getchannel("A").point(lambda v: int(v * 0.4)))
         gl = Image.new("RGBA", img.size, (0, 0, 0, 0)); gl.paste(glow, (sc(cx) - icon.width // 2, sc(cy) - icon.height // 2))
-        img.paste(gl.filter(ImageFilter.GaussianBlur(sc(14))), (0, 0), gl.filter(ImageFilter.GaussianBlur(sc(14))))
+        gb = gl.filter(ImageFilter.GaussianBlur(sc(14)))
+        img.paste(gb, (0, 0), gb)
         img.paste(icon, (sc(cx) - icon.width // 2, sc(cy) - icon.height // 2), icon)
-        d = ImageDraw.Draw(img, "RGBA")
-        y = text_block(d, ty, c, f1, lh)
-    return img, d
-
-def text_block(d, y, c, f1, lh):
-    d.text((P((80, y))), c["t1"], font=f1, fill=WHITE)
-    d.text((P((80, y + lh))), c["t2"], font=f1, fill=(63, 130, 255))
-    para(d, 80, y + int(lh * 2.15), c["sub"], font(FB, 31), (205, 218, 240), 900, 42)
-    return y + lh * 3
+    return img
 
 _c = _SPEC["cover"]; _R = _r.Random(_c.get("seed", 1)); _kind = _c.get("scene", "rush")
-if _kind in ("icon", "center"):
-    img, d = cover_special(_R, _kind, _c.get("theme", "blue"), _c)
-    brand(d)
+if _kind == "center": _kind = "text"
+if _kind in ("icon", "text"):
+    img = cover_special(_R, _kind, _c.get("theme", "blue"), _c)
 else:
     img = cover_scene(_R, _kind, _c.get("theme", "blue"))
-    darken(img, 700, 930, 238)
-    d = ImageDraw.Draw(img, "RGBA")
-    brand(d)
-    f1, s1 = fit([_c['t1'], _c['t2']], FH, 920, 150)
-    y = 800
-    text(d, (80, y), _c['t1'], f1, WHITE)
-    text(d, (80, y + int(s1 * 1.02)), _c['t2'], f1, BLUE2)
-    para(d, 80, y + int(s1 * 2.2), _c['sub'], font(FB, 31), GREY, 900, 42)
+darken(img, 700, 930, 238)
+d = ImageDraw.Draw(img, "RGBA")
+brand(d)
+f1, s1 = fit([_c['t1'], _c['t2']], FH, 920, 150)
+y = 640 if _kind == "text" else 800
+text(d, (80, y), _c['t1'], f1, WHITE)
+text(d, (80, y + int(s1 * 1.02)), _c['t2'], f1, BLUE2)
+para(d, 80, y + int(s1 * 2.2), _c['sub'], font(FB, 31), GREY, 900, 42)
 d.line([P((80, 1252)), P((200, 1252))], fill=BLUE, width=sc(6))
 text(d, (80, 1268), _c['foot'], font(FBB, 28), WHITE)
 text(d, (1000, 1262), "→", font(FH, 44), BLUE2, "ra")
