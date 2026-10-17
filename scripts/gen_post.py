@@ -417,7 +417,7 @@ def cover_special(R, kind, theme, c):
     return img
 
 _c = _SPEC["cover"]; _R = _r.Random(_c.get("seed", 1)); _kind = _c.get("scene", "rush")
-if _kind == "center": _kind = "text"
+if _kind in ("center", "goalie", "net"): _kind = "text"  # вратари и ворота сняты с ротации
 if _kind in ("icon", "text"):
     img = cover_special(_R, _kind, _c.get("theme", "blue"), _c)
 else:
@@ -426,7 +426,7 @@ darken(img, 640, 880, 238)
 d = ImageDraw.Draw(img, "RGBA")
 brand(d)
 f1, s1 = fit([_c['t1'], _c['t2']], FH, 920, 150)
-y = 560 if _kind == "text" else (740 if _kind == "icon" else 790)
+y = 500 if _kind == "text" else (740 if _kind == "icon" else 790)
 text(d, (80, y), _c['t1'], f1, WHITE)
 text(d, (80, y + int(s1 * 1.02)), _c['t2'], f1, BLUE2)
 ye = para(d, 80, y + int(s1 * 2.2), _c['sub'], font(FB, 36), GREY, 920, 50)
